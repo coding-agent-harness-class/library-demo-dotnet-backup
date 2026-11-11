@@ -25,6 +25,8 @@ app.MapGet("/books", (IBookCatalog books) => books.All());
 app.MapGet("/members/{id}", (string id, IMemberDirectory members) =>
     members.Find(id) is { } member ? Results.Ok(member) : Results.NotFound());
 
+app.MapGet("/loans/overdue", (LoanService service) => service.Overdue());
+
 app.MapGet("/loans/{id:guid}", (Guid id, LoanService service) =>
     service.Find(id) is { } loan ? Results.Ok(loan) : Results.NotFound());
 

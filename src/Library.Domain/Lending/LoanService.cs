@@ -13,6 +13,8 @@ public enum BorrowStatus
 
 public sealed record BorrowOutcome(BorrowStatus Status, Loan? Loan = null, PolicyResult? Policy = null);
 
+public sealed record OverdueLoan(Guid LoanId, string Isbn, string MemberId, DateOnly DueOn, int DaysOverdue, decimal FeeIfReturnedToday);
+
 public sealed class LoanService(
     IBookCatalog books,
     IMemberDirectory members,
@@ -75,6 +77,25 @@ public sealed class LoanService(
 
         loans.Save(loan);
         return loan;
+    }
+
+    /// <summary>Active loans past their due date, most overdue first, with the fee owed if returned today.</summary>
+    public IReadOnlyList<OverdueLoan> Overdue()
+    {
+        var today = Today();
+        return
+        [
+            .. loans.Active()
+                .Where(l => l.DueOn < today)
+                .Select(l => new OverdueLoan(
+                    l.Id,
+                    l.Isbn,
+                    l.MemberId,
+                    l.DueOn,
+                    today.DayNumber - l.DueOn.DayNumber,
+                    lateFees.Calculate(l.DueOn, today, members.Find(l.MemberId)!.Type)))
+                .OrderByDescending(o => o.DaysOverdue),
+        ];
     }
 
     public Loan? Find(Guid loanId) => loans.Find(loanId);
